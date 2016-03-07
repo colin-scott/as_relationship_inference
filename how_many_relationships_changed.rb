@@ -23,101 +23,119 @@ class Top1000Filter
   end
 end
 
-top_1000 = Top1000Filter.new
+def compare_epochs(p2c1, p2c2, p2p1, p2p2, epoch1, epoch2, top_1000)
+  # Output seven categories:
+  # p2p -> p2c & p2p -> c2p
+  # p2p -> no longer present
+  # p2c -> p2p
+  # p2c -> no longer present
+  # p2c -> c2p & c2p -> p2c
+  # new p2p
+  # new p2c
 
-# Ordered list of pairs: [filename, Set of AS pairs]
-filename_2_p2c = []
-# N.B. p2p pairs are ordered: <lower AS number, higher AS number>
-filename_2_p2p = []
+  total1 = p2p1 | p2c1
+  total2 = p2p2 | p2c2
 
-while not ARGV.empty?
-  input_file = ARGV.shift
+  # init from epoch 0, p2p and p2c from epoch 1
+  def disappeared(init,p2p,p2c)
+    init.select do |pair|
+      not (p2c.include? pair or p2c.include? [pair[1],pair[0]] or p2p.include? pair.sort)
+    end
+  end
 
-  p2c = Set.new
-  filename_2_p2c <<= [input_file, p2c]
-  p2p = Set.new
-  filename_2_p2p <<= [input_file, p2p]
+  def p2pchanged(p2p1,p2c2)
+    p2p1.select do |pair|
+      p2c2.include? pair or p2c2.include? pair.sort
+    end
+  end
 
-  File.foreach(input_file) do |line|
-    next if line.start_with? "#"
-    provider,customer,type = line.chomp.split("|").map { |i| i.to_i }
-    if type == 0
-      p2p.add([provider,customer])
-    else
-      p2c.add([provider,customer])
+  def p2cchanged(p2c1,p2p2)
+    p2c1.select do |pair|
+      p2p2.include? pair.sort
+    end
+  end
+
+  def flipped(p2c1,p2c2)
+    p2c1.select do |pair|
+      p2c2.include? [pair[1],pair[0]]
+    end
+  end
+
+  def print_and_dump(dataset, output_file, dat, denom)
+    output_file.puts "%-30s %8d %01f" % [dataset, dat.size, (dat.size * 100.0 / denom)]
+
+    # File.open(filename, "w") do |f|
+    #   dat.each { |i| f.puts i.join(",") }
+    # end
+  end
+
+  ["nop_filter", "weak_filter", "strict_filter"].each do |dataset|
+    method = top_1000.method(dataset)
+    denom = total1.select { |i| method.call(i) }.size
+    # TODO(cs): performance improvement, could just open these files once...,
+    # close at the end.
+    File.open(dataset + ".txt", "a") do |f|
+      f.puts "====== #{epoch1} <-> #{epoch2} ======"
+      f.puts "denominator: #{denom}"
+      print_and_dump("p2p_disappeared", f,
+                     disappeared(p2p1,p2p2,p2c2).select { |i| method.call(i) }, denom)
+      print_and_dump("p2c_disappeared", f,
+                     disappeared(p2c1,p2p2,p2c2).select { |i| method.call(i) }, denom)
+      print_and_dump("p2p_changed", f,
+                     p2pchanged(p2p1,p2c2).select { |i| method.call(i) }, denom)
+      print_and_dump("p2c_changed", f,
+                     p2cchanged(p2c1,p2p2).select { |i| method.call(i) }, denom)
+      print_and_dump("flipped", f,
+                     flipped(p2c1,p2c2).select { |i| method.call(i) }, denom)
+      print_and_dump("new_p2p", f,
+                     disappeared(p2p2,p2p1,p2c1).select { |i| method.call(i) }, denom)
+      print_and_dump("new_p2c", f,
+                     disappeared(p2c2,p2p1,p2c1).select { |i| method.call(i) }, denom)
     end
   end
 end
 
-# Output seven categories:
-# p2p -> p2c & p2p -> c2p
-# p2p -> no longer present
-# p2c -> p2p
-# p2c -> no longer present
-# p2c -> c2p & c2p -> p2c
-# new p2p
-# new p2c
+class DataFile
+  attr_accessor :filename, :p2p, :p2c
 
-# TODO(cs): generalize to >2
-p2c1 = filename_2_p2c[0][1]
-p2c2 = filename_2_p2c[1][1]
-p2p1 = filename_2_p2p[0][1]
-p2p2 = filename_2_p2p[1][1]
+  def initialize(file)
+    @filename = file
+    @p2c = Set.new
+    @p2p = Set.new
 
-$total1 = p2p1 | p2c1
-$total2 = p2p2 | p2c2
-
-# init from epoch 0, p2p and p2c from epoch 1
-def disappeared(init,p2p,p2c)
-  init.select do |pair|
-    not (p2c.include? pair or p2c.include? [pair[1],pair[0]] or p2p.include? pair.sort)
+    File.foreach(file) do |line|
+      next if line.start_with? "#"
+      provider,customer,type = line.chomp.split("|").map { |i| i.to_i }
+      if type == 0
+        @p2p.add([provider,customer])
+      else
+        @p2c.add([provider,customer])
+      end
+    end
   end
 end
 
-def p2pchanged(p2p1,p2c2)
-  p2p1.select do |pair|
-    p2c2.include? pair or p2c2.include? pair.sort
-  end
-end
+top_1000 = Top1000Filter.new
 
-def p2cchanged(p2c1,p2p2)
-  p2c1.select do |pair|
-    p2p2.include? pair.sort
-  end
-end
+# Assumes sorted filenames
+files = Dir.glob("*as-rel.txt")
+raise AssertionError.new unless files.size >= 1
+next_input_file = files.shift
+puts "ingesting #{next_input_file}"
+previous_data_object = DataFile.new(next_input_file)
 
-def flipped(p2c1,p2c2)
-  p2c1.select do |pair|
-    p2c2.include? [pair[1],pair[0]]
-  end
-end
+while files.size >= 1
+  next_input_file = files.shift
+  puts "ingesting #{next_input_file}"
+  new_data_object = DataFile.new(next_input_file)
 
-def print_and_dump(filename, dat, denom)
-  File.open(filename, "w") do |f|
-    puts "%-30s %8d %01f" % [filename, dat.size, (dat.size * 100.0 / denom)]
-    dat.each { |i| f.puts i.join(",") }
-  end
-end
+  p2c1 = previous_data_object.p2c
+  p2c2 = new_data_object.p2c
+  p2p1 = previous_data_object.p2p
+  p2p2 = new_data_object.p2p
+  epoch1 = previous_data_object.filename
+  epoch2 = new_data_object.filename
+  compare_epochs(p2c1, p2c2, p2p1, p2p2, epoch1, epoch2, top_1000)
 
-[[top_1000.method("nop_filter"),""],
- [top_1000.method("weak_filter"),".1edge"],
- [top_1000.method("strict_filter"),".2edge"]].each do |f,postfix|
-
-  denom = $total1.select { |i| f.call(i) }.size
-  puts "denominator: #{denom}"
-  print_and_dump("p2p_disappeared.dat" + postfix,
-                 disappeared(p2p1,p2p2,p2c2).select { |i| f.call(i) }, denom)
-  print_and_dump("p2c_disappeared.dat" + postfix,
-                 disappeared(p2c1,p2p2,p2c2).select { |i| f.call(i) }, denom)
-  print_and_dump("p2p_changed.dat" + postfix,
-                 p2pchanged(p2p1,p2c2).select { |i| f.call(i) }, denom)
-  print_and_dump("p2c_changed.dat" + postfix,
-                 p2cchanged(p2c1,p2p2).select { |i| f.call(i) }, denom)
-  print_and_dump("flipped.dat" + postfix,
-                 flipped(p2c1,p2c2).select { |i| f.call(i) }, denom)
-  print_and_dump("new_p2p.dat" + postfix,
-                 disappeared(p2p2,p2p1,p2c2).select { |i| f.call(i) }, denom)
-  print_and_dump("new_p2c.dat" + postfix,
-                 disappeared(p2c2,p2p1,p2c2).select { |i| f.call(i) }, denom)
-  puts "============="
+  previous_data_object = new_data_object
 end
