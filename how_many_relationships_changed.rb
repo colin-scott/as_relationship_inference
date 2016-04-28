@@ -103,11 +103,11 @@ class Analyzer
     def print_temporary_disappearances
         puts "Total disappeared p2p: #{@all_disappeared_p2p.size}"
         p2p_isect = @all_disappeared_p2p & @all_new_p2p
-        puts "Total that came back: #{p2p_isect.size} (#{@all_disappeared_p2p.size * 100.0 / p2p_isect.size})"
+        puts "Total that came back: #{p2p_isect.size} (#{p2p_isect.size * 100.0 / @all_disappeared_p2p.size})"
 
         puts "Total disappeared p2c: #{@all_disappeared_p2c.size}"
         p2c_isect = @all_disappeared_p2c & @all_new_p2c
-        puts "Total that came back: #{p2c_isect.size} (#{@all_disappeared_p2c.size * 100.0 / p2c_isect.size})"
+        puts "Total that came back: #{p2c_isect.size} (#{p2c_isect.size * 100.0 / @all_disappeared_p2c.size})"
     end
 
     def percent(denom, dat)
