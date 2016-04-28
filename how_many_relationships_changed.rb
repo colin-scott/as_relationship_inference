@@ -36,7 +36,12 @@ class Analyzer
     @strict_csv = CSV.open("stacked_bar_chart/files/strict.csv", "wb")
     @strict_csv << title_row
     @strict_txt = File.open("strict_filter.txt","w")
+
     @epoch = 0
+    @all_disappeared_p2p = Set.new
+    @all_disappeared_p2c = Set.new
+    @all_new_p2p = Set.new
+    @all_new_p2c = Set.new
   end
 
   def close
@@ -95,6 +100,16 @@ class Analyzer
       # end
     end
 
+    def print_temporary_disappearances
+        puts "Total disappeared p2p: #{@all_disappeared_p2p.size}"
+        p2p_isect = @all_disappeared_p2p & @all_new_p2p
+        puts "Total that came back: #{p2p_isect.size} (#{@all_disappeared_p2p.size * 100.0 / p2p_isect.size})"
+
+        puts "Total disappeared p2c: #{@all_disappeared_p2c.size}"
+        p2c_isect = @all_disappeared_p2c & @all_new_p2c
+        puts "Total that came back: #{p2c_isect.size} (#{@all_disappeared_p2c.size * 100.0 / p2c_isect.size})"
+    end
+
     def percent(denom, dat)
       (dat.size * 100.0 / denom)
     end
@@ -103,12 +118,16 @@ class Analyzer
       method = top_1000.method(dataset)
       denom = total1.select { |i| method.call(i) }.size
       p2p_dis = disappeared(p2p1,p2p2,p2c2).select { |i| method.call(i) }
+      @all_disappeared_p2p += p2p_dis
       p2c_dis = disappeared(p2c1,p2p2,p2c2).select { |i| method.call(i) }
+      @all_disappeared_p2c += p2c_dis
       p2p_changed = p2pchanged(p2p1,p2c2).select { |i| method.call(i) }
       p2c_changed = p2cchanged(p2c1,p2p2).select { |i| method.call(i) }
       flipped = flipped(p2c1,p2c2).select { |i| method.call(i) }
       new_p2p = disappeared(p2p2,p2p1,p2c1).select { |i| method.call(i) }
+      @all_new_p2p += new_p2p
       new_p2c = disappeared(p2c2,p2p1,p2c1).select { |i| method.call(i) }
+      @all_new_p2c += new_p2c
       txt.puts "====== #{epoch1} <-> #{epoch2} ======"
       txt.puts "denominator: #{denom}"
       print_and_dump("p2p_disappeared", txt, p2p_dis, denom)
@@ -175,4 +194,5 @@ while files.size >= 1
   previous_data_object = new_data_object
 end
 
+analyzer.print_temporary_disappearances
 analyzer.close
