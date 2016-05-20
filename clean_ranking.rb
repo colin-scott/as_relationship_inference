@@ -1,5 +1,7 @@
 #!/usr/bin/ruby
 
+# Ranking file (ARGV[0]) comes from CAIDA AS Ranking website.
+
 # Format:
 # 1	3356	LEVEL3	Level 3 Communications, Inc.	 Tr/Ac 	24,553	190,138	715,498,496	
 # 47%

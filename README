@@ -1,1 +1,12 @@
 Data source: http://data.caida.org/datasets/as-relationships/serial-1/
+
+Steps:
+
+# Download a list of dates from: http://data.caida.org/datasets/as-relationships/serial-1/
+./download_data.rb dates.txt
+
+# Download the top AS ranking from CAIDA's AS ranking website.
+./clean_ranking.rb ranking.txt > top_1000.dat
+
+# Process data
+./how_many_relationships_changed.rb > out.txt

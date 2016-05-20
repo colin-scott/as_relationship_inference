@@ -6,8 +6,12 @@ require 'csv'
 class Top1000Filter
   def initialize
     @top_1000 = Set.new
-    File.foreach("top_1000.dat") do |line|
-      @top_1000.add(line.chomp.to_i)
+    begin
+      File.foreach("top_1000.dat") do |line|
+        @top_1000.add(line.chomp.to_i)
+      end
+    catch
+      $stderr.puts "WARNING: No top 1000 ranking file found. Skipping ranking filters"
     end
   end
 
@@ -175,12 +179,12 @@ analyzer = Analyzer.new
 files = Dir.glob("*as-rel.txt")
 raise AssertionError.new unless files.size >= 1
 next_input_file = files.shift
-puts "ingesting #{next_input_file}"
+$stderr.puts "ingesting #{next_input_file}"
 previous_data_object = DataFile.new(next_input_file)
 
 while files.size >= 1
   next_input_file = files.shift
-  puts "ingesting #{next_input_file}"
+  $stderr.puts "ingesting #{next_input_file}"
   new_data_object = DataFile.new(next_input_file)
 
   p2c1 = previous_data_object.p2c
