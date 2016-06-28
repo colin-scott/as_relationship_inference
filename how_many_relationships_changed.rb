@@ -6,11 +6,11 @@ require 'csv'
 class Top1000Filter
   def initialize
     @top_1000 = Set.new
-    begin
+    if File.exist? "top_1000.dat"
       File.foreach("top_1000.dat") do |line|
         @top_1000.add(line.chomp.to_i)
       end
-    catch
+    else
       $stderr.puts "WARNING: No top 1000 ranking file found. Skipping ranking filters"
     end
   end
@@ -104,14 +104,19 @@ class Analyzer
       # end
     end
 
-    def print_temporary_disappearances
-        puts "Total disappeared p2p: #{@all_disappeared_p2p.size}"
+    def print_temporary_disappearances(output_file)
+        output_file.puts "Total disappeared p2p: #{@all_disappeared_p2p.size}"
         p2p_isect = @all_disappeared_p2p & @all_new_p2p
-        puts "Total that came back: #{p2p_isect.size} (#{p2p_isect.size * 100.0 / @all_disappeared_p2p.size})"
+        output_file.puts "Total that came back: #{p2p_isect.size} (#{p2p_isect.size * 100.0 / @all_disappeared_p2p.size})"
 
-        puts "Total disappeared p2c: #{@all_disappeared_p2c.size}"
+        output_file.puts "Total disappeared p2c: #{@all_disappeared_p2c.size}"
         p2c_isect = @all_disappeared_p2c & @all_new_p2c
-        puts "Total that came back: #{p2c_isect.size} (#{p2c_isect.size * 100.0 / @all_disappeared_p2c.size})"
+        output_file.puts "Total that came back: #{p2c_isect.size} (#{p2c_isect.size * 100.0 / @all_disappeared_p2c.size})"
+
+        output_file.puts "== p2p =="
+        @all_disappeared_p2p.each { |l| output_file.puts l.join(" ") }
+        output_file.puts "== p2c =="
+        @all_disappeared_p2c.each { |l| output_file.puts l.join(" ") }
     end
 
     def percent(denom, dat)
@@ -198,5 +203,7 @@ while files.size >= 1
   previous_data_object = new_data_object
 end
 
-analyzer.print_temporary_disappearances
-analyzer.close
+File.open("disappearances.txt", "w") do |f|
+  analyzer.print_temporary_disappearances(f)
+  analyzer.close
+end

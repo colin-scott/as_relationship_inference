@@ -10,3 +10,12 @@ Steps:
 
 # Process data
 ./how_many_relationships_changed.rb > out.txt
+
+# Output shows up in a bunch of places:
+# nop_filter.txt
+# strict_filter.txt
+# weak_filter.txt
+# stacked_bar_char/files/nop_filter.csv
+# stacked_bar_char/files/strict_filter.csv
+# stacked_bar_char/files/weak_filter.csv
+# disappearances.txt
